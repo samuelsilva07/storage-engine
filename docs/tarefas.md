@@ -12,14 +12,27 @@
 
 ### Conteúdo do disco
 
-Para manter a persistência do disco, deve-se **armazenar as operações realizadas pela engine.** Deste modo, a reinicialização apenas precisará ler o arquivo para restaurar o estado atual na estrutura auxiliar na memória RAM.
+#### Opção 1
 
-A cada operação realizada, ela deve ser registrada no final do arquivo em disco, para manter o histórico das operações válido e sequencial.  
+Para garantir a flexibilidade do tamanho dos valores, a representação de cada registro deve conter:
 
-### Modelagem das operações no disco 
+- Status do registro **(ATIVO/INATIVO)**
+- Valor da chave do registro (uint64 - long com alguns métodos em Java)
+- Tamanho do valor do registro, em bytes **(indica quantos bytes serão lidos em seguida, garantindo o tamanho variável dos valores do registro)**
+- Valor do registro
 
-- Valor da operação **(implementar enum associando cada uma a um valor inteiro, que será armazenado no disco)**
-- Valor da chave do registro (uint64/long em Java)
+Esta representação auxilia na leitura após interrupções, pois apenas os registros com status ATIVOS serão considerados na construção da estrutura da RAM, diminuindo a quantidade de operações na sua reconstrução em eventuais erros na engine.
+
+#### Opção 2
+
+Para manter a persistência do disco, deve-se gerar dois arquivos: **armazenar as operações realizadas pela engine, juntamente com os dados do registro**. Deste modo, em casos de interrupção inesperada, o processo de reinicialização apenas precisará ler o arquivo para restaurar o estado atual na estrutura auxiliar na memória RAM.
+
+A cada operação realizada, ela deve ser registrada no final do arquivo em disco, para manter os registros das operações válidos e distribuídos sequencial. Dessa forma, a reconstrução da estrutura na RAM será feita com fidelidade ao histórico relacionado às requisições realizadas.
+
+Como resultado, a modelagem das operações + registros no disco deve ser baseada na estrutura abaixo: 
+
+- Valor da operação **(implementar enum - PUT/GET/DELETE - associando cada uma a um valor inteiro, que será armazenado no disco)**
+- Valor da chave do registro (uint64 - long com alguns métodos em Java)
 - Tamanho do valor do registro, em bytes **(indica quantos bytes serão lidos em seguida, garantindo o tamanho variável dos valores do registro)**
 - Valor do registro
 
@@ -29,8 +42,18 @@ Esta estrutura será utilizada somente como um recurso temporário, para represe
 
 Em caso de encerramento da engine ou da ocorrência de alguma intercorrência, a ordem das operações em disco indica o estado atual da engine. Na reinicialização, devemos reconstruir a estrutura da RAM por meio da leitura do arquivo.  
 
+### Classes utilizadas
+
+A definir.
+
 ### Operação PUT
+
+A definir.
 
 ### Operação DELETE
 
+A definir.
+
 ### Operação GET
+
+A definir.
