@@ -7,8 +7,8 @@ import java.util.Map;
 public interface IDiskManager {
     // File diskFile
 
-    public void put(Record record, Long address);
-    public String get(Long address);
-    public void delete(Long address);
-    public Map<Long, Long> getActiveRecords();
+    void put(Record record, Long address);
+    String get(Long address);
+    void delete(Long address);
+    Map<Long, Long> getActiveRecords();
 }
