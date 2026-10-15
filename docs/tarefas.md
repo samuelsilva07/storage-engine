@@ -80,7 +80,7 @@ Armazena uma operação realizada pela engine, e é essencial para guardar o his
 - 3: DiskManager obtém o registro da operação realizada e adiciona-o no fim do disco, armazenando o seu status (ACTIVE), a sua chave, o tamanho do seu valor e o seu valor correspondente, e retorna o endereço do registro no arquivo
   - obs: caso exista um arquivo com a mesma chave, o seu valor no disco deve ser substituído pelo novo valor
 - 4: MapManager recebe a chave e o endereço do registro, para adicioná-los na tabela hash
-- 5: StorageEngine retorna uma resposta em JSON Lines, contendo o id e o status da operação 
+- 5: StorageEngine retorna uma resposta em JSON Lines, contendo o id e o status da operação ("ok")
 
 
 ### Operação DELETE
@@ -88,9 +88,11 @@ Armazena uma operação realizada pela engine, e é essencial para guardar o his
 - 1: Usuário informa a chave e o valor do novo registro para a engine
 - 2: LogManager cria o registro da operação e adiciona-o no histórico de operações, com o id, tipo da operação e chave do registro
 - 3: MapManager recebe a chave informada e retorna o endereço do registro, através da tabela hash na RAM
+  - obs: caso a chave não esteja armazenada na tabela, ela deve retornar null para a engine
 - 4: DiskManager acessa o endereço do registro e altera o seu status para INACTIVE
 - 5: MapManager retira a chave informada da tabela hash
-- 6: StorageEngine retorna uma resposta em JSON Lines, contendo o id e o status da operação
+- 6: StorageEngine retorna uma resposta em JSON Lines, contendo o id e o status da operação ("ok")
+  - obs: caso a chave não seja encontrada, o status da operação deve receber "not_found"
 
 ### Operação GET
 
@@ -98,5 +100,6 @@ Armazena uma operação realizada pela engine, e é essencial para guardar o his
 - 2: LogManager cria o registro da operação e adiciona-o no histórico de operações, com o id, tipo da operação e chave do registro
 - 3: MapManager recebe a chave informada e retorna o endereço do registro, através da tabela hash na RAM
 - 4: DiskManager acessa o endereço do registro e retorna o seu valor, em String
-- 5: StorageEngine retorna uma resposta em JSON Lines, contendo o id, status da operação e o valor requisitado
+- 5: StorageEngine retorna uma resposta em JSON Lines, contendo o id, status da operação ("ok") e o valor requisitado
+  - obs: caso a chave não seja encontrada, o status da operação deve receber "not_found", e nenhum valor deve ser retornado
 
