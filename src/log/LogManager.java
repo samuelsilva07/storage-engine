@@ -80,18 +80,4 @@ public class LogManager implements ILogManager {
         }
     }
 */
-
-    public static void main(String[] args) {
-        List<String> operations = new ArrayList<>();
-        operations.add("{\"id\": 1, \"op\": \"put\", \"key\": 91, \"value\": \"abc\"}");
-        operations.add("{\"id\": 2, \"op\": \"get\", \"key\": 91}");
-        operations.add("{\"id\": 3, \"op\": \"delete\", \"key\": 91");
-
-        LogManager logManager = new LogManager("data.dat");
-        operations.forEach((operationJson) -> {
-            logManager.addOperation(Operation.fromString(operationJson));
-            System.out.println("Operação adicionada!");
-        });
-        System.out.println(operations);
-    }
 }
