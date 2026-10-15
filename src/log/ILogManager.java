@@ -1,14 +1,14 @@
 package log;
 
+import operation.Operation;
+
 import java.util.List;
 
 public interface ILogManager {
     // File logFile
 
-    void openLogFile();
-    void closeLogFile();
-    void addOperation(String operation);
-    String getOperation(Long id);
-    List<String> getOperation(Long id, Long lastId);
-    void removeOldestOperation();
+    void addOperation(Operation operation);
+    Operation getOperation(Long address);
+    List<Operation> getOperation(Long address, Long id, Long lastId);
+    // void removeOldestOperation(); TODO: implementar na etapa 2
 }
