@@ -1,4 +1,4 @@
-package engine;
+package main.java.engine;
 
 public interface IStorageEngine<T> {
     void PUT(T key);

@@ -1,6 +1,6 @@
-package log;
+package main.java.log;
 
-import operation.Operation;
+import main.java.operation.Operation;
 
 import java.util.List;
 

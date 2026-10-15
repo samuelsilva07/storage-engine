@@ -1,8 +1,6 @@
-package operation;
+package main.java.operation;
 
-import record.Record;
-
-import java.util.*;
+import main.java.record.Record;
 
 public record Operation (
         Long id,

@@ -1,4 +1,4 @@
-package record;
+package main.java.record;
 
 public class Record {
     private RecordStatus status;

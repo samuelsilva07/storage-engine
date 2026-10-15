@@ -1,9 +1,9 @@
-package map;
+package main.java.map;
 
 import java.util.Map;
 
 public interface IMapManager {
-    // Map<Long, Long> map      TODO: definir qual implementação será utilizada
+    // Map<Long, Long> main.java.map      TODO: definir qual implementação será utilizada
 
     void putAddress(Long key, Long address);
     Long getAddress(Long key);

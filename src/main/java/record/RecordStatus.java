@@ -1,4 +1,4 @@
-package record;
+package main.java.record;
 
 public enum RecordStatus {
     NOACTIVE(0),

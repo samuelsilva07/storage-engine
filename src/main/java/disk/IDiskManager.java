@@ -1,6 +1,6 @@
-package disk;
+package main.java.disk;
 
-import record.Record;
+import main.java.record.Record;
 
 import java.util.Map;
 
