@@ -9,7 +9,7 @@ public class Record {
     private Record(Long key, int valueSize, String value) {
         this.status = RecordStatus.ACTIVE;
         this.key = key;
-        this.valueSize = valueSize; 
+        this.valueSize = valueSize;
         this.value = value;
     }
 
@@ -18,6 +18,7 @@ public class Record {
             - calcular tamanho do valor, em bytes
             - criar registro com seus dados
          */
+        return null;
     }
 
     public RecordStatus getStatus() {
