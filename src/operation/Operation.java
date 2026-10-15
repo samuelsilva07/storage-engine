@@ -2,46 +2,27 @@ package operation;
 
 import record.Record;
 
-public class Operation {
-    private static long currentId = 1;
-    private final long id;
-    private final OperationType type;
-    private final Record record;
-    private final long recordKey;
+import java.util.*;
 
-    private static long getNextId() {
-        return currentId++;
+public record Operation (
+        Long id,
+        String type,
+        Record record,
+        long recordKey,
+        long lastRecordKey // utilizado para marcar o último registro lido na operação de SCAN
+) {
+    // construtor para operações de GET/DELETE
+    public Operation(Long id, String type, Long key) {
+        this(id, type, null, key, key);
     }
 
     // construtor para operações de PUT
-    public Operation(OperationType type, Long key, String value) {
-        this.id = getNextId();
-        this.type = type;
-        this.recordKey = key;
-        this.record = Record.buildRecord(key, value);
+    public Operation(Long id, String type, Long key, String value) {
+        this(id, type, Record.buildRecord(key, value), key, key);
     }
 
-    // construtor para operações de GET/DELETE
-    public Operation(OperationType type, Long key) {
-        this.id = getNextId();
-        this.type = type;
-        this.recordKey = key;
-        this.record = null;
-    }
-
-    public long getId() {
-        return id;
-    }
-
-    public OperationType getType() {
-        return type;
-    }
-
-    public Record getRecord() {
-        return record;
-    }
-
-    public long getRecordKey() {
-        return recordKey;
+    // construtor para as operações de SCANs
+    public Operation(Long id, String type, Long key, Long lastRecordKey) {
+        this(id, type, null, key, lastRecordKey);
     }
 }
