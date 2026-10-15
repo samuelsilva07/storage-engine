@@ -1,13 +1,13 @@
 package main.java.record;
 
 public class Record {
-    private RecordStatus status;
+    private boolean isActive;
     private Long key;
     private Long valueSize;
     private String value;
 
     private Record(Long key, Long valueSize, String value) {
-        this.status = RecordStatus.ACTIVE;
+        this.isActive = true;
         this.key = key;
         this.valueSize = valueSize;
         this.value = value;
@@ -20,12 +20,12 @@ public class Record {
          */
     }
 
-    public RecordStatus getStatus() {
-        return status;
+    public boolean getStatus() {
+        return isActive;
     }
 
-    public void setStatus(RecordStatus status) {
-        this.status = status;
+    public void setStatus(boolean isActive) {
+        this.isActive = isActive;
     }
 
     public Long getKey() {

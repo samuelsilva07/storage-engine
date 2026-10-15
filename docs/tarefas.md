@@ -50,7 +50,7 @@ Representa a fachada da engine, contendo as operações fornecidas por ela, em c
 
 #### DiskManager
 
-Tem o papel de controlar o estado dos registros no disco, manipulando o arquivo de forma direta e realizando as operações propriamente ditas .
+Tem o papel de controlar o estado dos registros no disco, manipulando o arquivo de forma direta e realizando as operações propriamente ditas.
 
 #### OperationManager
 
@@ -71,16 +71,20 @@ Armazena uma operação realizada pela engine, e é essencial para guardar o his
 ### Operação PUT
 
 - 1: Usuário informa a chave e o valor do novo registro para a engine
-- 2: LogManager cria a operação (e o seu registro) e adiciona a operação no histórico de operações, com o tipo da operação, chave do registro, tamanho do valor em bytes e o valor armazenado
-- 3: DiskManager obtém o registro da operação realizada e adiciona-o no disco, armazenando o seu status (ACTIVE), a sua chave, o tamanho do seu valor e o seu valor correspondente, e retorna o endereço do registro no arquivo
+- 2: LogManager cria a operação (e o seu registro) e adiciona a operação no histórico de operações, com o id, tipo da operação, chave do registro e o valor armazenado
+- 3: DiskManager obtém o registro da operação realizada e adiciona-o no fim do disco, armazenando o seu status (ACTIVE), a sua chave, o tamanho do seu valor e o seu valor correspondente, e retorna o endereço do registro no arquivo
   - obs: caso exista um arquivo com a mesma chave, o seu valor no disco deve ser substituído pelo novo valor
 - 4: MapManager recebe a chave e o endereço do registro, para adicioná-los na tabela hash
-- 5: StorageEngine retorna uma resposta em JSON Lines, contendo o id, tipo, chave e valor armazenado na operação 
+- 5: StorageEngine retorna uma resposta em JSON Lines, contendo o id e o status da operação 
 
 
 ### Operação DELETE
 
-A definir.
+- 1: Usuário informa a chave e o valor do novo registro para a engine
+- 2: LogManager cria a operação (e o seu registro) e adiciona a operação no histórico de operações, com o id, tipo da operação e chave do registro
+- 3: MapManager recebe a chave informada e retorna o endereço do registro, através da tabela hash na RAM
+- 4: DiskManager acessa o endereço do registro e altera o seu status para INACTIVE
+- 
 
 ### Operação GET
 
