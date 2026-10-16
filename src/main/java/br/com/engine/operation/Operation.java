@@ -34,20 +34,20 @@ public record Operation (
         String jsonLine = jsonParser.toJson(operation);
 
         Type mapType = new TypeToken<Map<String, String>>() {}.getType();
-        Map<String, String> operationMap = jsonParser.fromJson(jsonLine, mapType);
+        Map<String, Object> operationMap = jsonParser.fromJson(jsonLine, mapType);
 
-        Long id = Long.getLong(operationMap.get("id"));
-        String type = operationMap.get("type");
+        Long id = Long.getLong(operationMap.get("id").toString());
+        String type = operationMap.get("type").toString();
         Long key;
 
         if (type.equals("scan")) {
-            key = Long.getLong(operationMap.get("start"));
-            Long end = Long.getLong(operationMap.get("end"));
+            key = Long.getLong(operationMap.get("start").toString());
+            Long end = Long.getLong(operationMap.get("end").toString());
             return new Operation(id, type, key, end);
         } else {
-            key = Long.getLong(operationMap.get("key"));
+            key = Long.getLong(operationMap.get("key").toString());
             if (type.equals("get")) {
-                String value = operationMap.get("value");
+                String value = operationMap.get("value").toString();
                 return new Operation(id, type, key, value);
             } else { // operações GET/DELETE
                 return new Operation(id, type, key);
