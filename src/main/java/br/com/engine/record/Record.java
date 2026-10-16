@@ -18,6 +18,7 @@ public class Record {
             - calcular tamanho do valor, em bytes
             - criar registro com seus dados
          */
+        return null;
     }
 
     public RecordStatus getStatus() {
