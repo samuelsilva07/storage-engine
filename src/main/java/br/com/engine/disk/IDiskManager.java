@@ -1,6 +1,6 @@
 package br.com.engine.disk;
 
-import main.java.record.Record;
+import br.com.engine.record.Record;
 
 import java.util.Map;
 

@@ -29,28 +29,29 @@ public record Operation (
         this(id, type, null, recordKey, lastRecordKey);
     }
 
-    public static Operation getFromJson(String operation) {
+    public static Operation getFromJson(String operationJson) {
         Gson jsonParser = new Gson();
-        String jsonLine = jsonParser.toJson(operation);
 
-        Type mapType = new TypeToken<Map<String, String>>() {}.getType();
-        Map<String, Object> operationMap = jsonParser.fromJson(jsonLine, mapType);
+        Type mapType = new TypeToken<Map<String, Object>>() {}.getType();
+        Map<String, Object> operationMap = jsonParser.fromJson(operationJson, mapType);
 
-        Long id = Long.getLong(operationMap.get("id").toString());
-        String type = operationMap.get("type").toString();
+        System.out.println(operationMap);
+
+        Long id = ((Number) operationMap.get("id")).longValue();
+        String op = operationMap.get("op").toString();
         Long key;
 
-        if (type.equals("scan")) {
-            key = Long.getLong(operationMap.get("start").toString());
-            Long end = Long.getLong(operationMap.get("end").toString());
-            return new Operation(id, type, key, end);
+        if (op.equals("scan")) {
+            key = ((Number)operationMap.get("start")).longValue();
+            Long end = ((Number)operationMap.get("end")).longValue();
+            return new Operation(id, op, key, end);
         } else {
-            key = Long.getLong(operationMap.get("key").toString());
-            if (type.equals("get")) {
+            key = ((Number)operationMap.get("key")).longValue();
+            if (op.equals("put")) {
                 String value = operationMap.get("value").toString();
-                return new Operation(id, type, key, value);
+                return new Operation(id, op, key, value);
             } else { // operações GET/DELETE
-                return new Operation(id, type, key);
+                return new Operation(id, op, key);
             }
         }
     }
