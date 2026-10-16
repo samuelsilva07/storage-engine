@@ -7,8 +7,8 @@ import java.util.List;
 public interface ILogManager {
     // File logFile
 
-    void addOperation(Operation operation);
-    Operation getOperation(Long address);
-    List<Operation> getOperation(Long address, Long id, Long lastId);
+    void addOperation(String operationJson);
+    Operation getOperation(Long id);
+    List<Operation> getOperation(Long id, Long lastId);
     // void removeOldestOperation(); TODO: implementar na etapa 2
 }
