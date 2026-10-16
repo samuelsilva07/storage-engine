@@ -29,7 +29,7 @@ public record Operation (
         this(id, type, null, recordKey, lastRecordKey);
     }
 
-    public static Operation fromJson(String operation) {
+    public static Operation getFromJson(String operation) {
         Gson jsonParser = new Gson();
         String jsonLine = jsonParser.toJson(operation);
 
