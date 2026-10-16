@@ -1,14 +1,14 @@
-package disk;
-
+package br.com.engine.disk;
+import br.com.engine.record.Record;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.Map;
+
+import br.com.engine.record.RecordStatus;
+
 import java.util.HashMap;
-import disk.InvalidFileAddressException;
 
-import record.Record;
-import utils.ByteArrayCodec;
-
+import br.com.engine.utils.ByteArrayCodec;
 public class DiskManager implements IDiskManager {
 
 	RandomAccessFile file;
@@ -23,7 +23,7 @@ public class DiskManager implements IDiskManager {
 		file.seek(file.length());
 	    Long newAddress= file.getFilePointer();
 		
-		file.writeInt(1);
+		file.writeInt(RecordStatus.ACTIVE.getStatus());
 		file.write(ByteArrayCodec.serializeLong(record.getKey()));
 		file.write(ByteArrayCodec.serializeInt(record.getValueSize()));
 		file.write(ByteArrayCodec.serializeString(record.getValue()));
@@ -47,7 +47,7 @@ public class DiskManager implements IDiskManager {
 			return;
 		}
 		file.seek(address);
-		file.writeInt(0);
+		file.writeInt(RecordStatus.NOACTIVE.getStatus());
 	}
 
 	@Override
