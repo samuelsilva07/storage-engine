@@ -70,22 +70,4 @@ public class LogManager implements ILogManager {
         }
     }
 */
-
-    public static void main(String[] args) {
-        List<String> request = new ArrayList<>();
-
-        for (int i = 0; i < 50_000; i++)
-            request.add(String.format("{\"id\": %d, \"op\": \"put\", \"key\": 91, \"value\": \"abc\"}", i + 1));
-        System.out.println("Vetor construído");
-
-        LogManager logManager = new LogManager("log.jsonl");
-        for (String op: request)
-            logManager.addOperation(op);
-        System.out.println("Arquivo construído");
-
-        for (Long id = 1L; id <= request.size(); id++)
-            System.out.println(logManager.getOperation(id));
-        System.out.println("Todas as operações foram obtidas");
-
-    }
 }
