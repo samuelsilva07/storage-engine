@@ -7,23 +7,18 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class LogManager implements ILogManager {
-    private File logFile;
+    private String logFileName;
     private int operationCount = 0;
-    private Map<Long, Long> filePositionMap = new HashMap<>();
 
-    public LogManager(String logFile) {
-        this.logFile = new File(logFile);
-        filePositionMap.put(1L, 0L);
-    }
-
-    public Map<Long, Long> getFilePositionMap() {
-        return filePositionMap;
+    public LogManager(String logFileName) {
+        this.logFileName = logFileName;
     }
 
     public void addOperation(String operationJson) {
         operationCount++;
+        Long address;
         try (BufferedWriter writer = new BufferedWriter(
-                new FileWriter(this.logFile, true)
+                new FileWriter(this.logFileName, true)
         )) {
             writer.write(operationJson.trim());
             writer.newLine();
@@ -31,28 +26,17 @@ public class LogManager implements ILogManager {
             System.out.println("ERROR: " + e.getMessage());
             e.printStackTrace();
         }
-        addNextPositionInMap(Operation.getFromJson(operationJson),
-                (long) operationJson.length());
-    }
-
-    public void addNextPositionInMap(Operation operation, Long operationLength) {
-        System.out.println("Address = " + operationLength);
-        this.filePositionMap.put(operation.id() + 1, operationLength + 3);
     }
 
     public Operation getOperation(Long id) {
         try (BufferedReader reader = new BufferedReader(
-                new FileReader(this.logFile, StandardCharsets.UTF_8)
+                new FileReader(this.logFileName, StandardCharsets.UTF_8)
         )) {
-            String line;
-            if (id != 1) {
-                Long posSkip = this.filePositionMap.get(id) - 0.1;
-                reader.skip(posSkip); // pula a quantidade de caracteres para a linha desejada
-                System.out.println("Positions skipped: " + posSkip);
-            }
-            line = reader.readLine();
-            System.out.println("line: " + line);
-            return Operation.getFromJson(line);
+            String operationJson = reader.lines()
+                                    .skip(id - 1)
+                                    .findFirst()
+                                    .get();
+            return Operation.getFromJson(operationJson);
         } catch (IOException e) {
             System.out.println("ERROR: " + e.getMessage());
             e.printStackTrace();
@@ -62,16 +46,10 @@ public class LogManager implements ILogManager {
 
     public List<Operation> getOperation(Long id, Long lastId) {
         try (BufferedReader reader = new BufferedReader(
-                new FileReader(this.logFile)
+                new FileReader(this.logFileName)
         )) {
             List<Operation> operations = new ArrayList<>();
-            String line;
-            reader.skip(this.filePositionMap.get(id));
-            int linesRead = (int) (lastId - id);
-            for (int i = 0; i <= linesRead; i++){
-                line = reader.readLine();
-                operations.add(Operation.getFromJson(line));
-            }
+            // TODO: implementar o salto de id linhas e ler até a linha lastId
             return operations;
         } catch (IOException e) {
             System.out.println("ERROR: " + e.getMessage());
@@ -83,7 +61,7 @@ public class LogManager implements ILogManager {
     public void removeOldestOperation() {
         operationCount--;
         try (BufferedWriter writer = new BufferedWriter(
-                new FileWriter(this.logFile, true)
+                new FileWriter(this.logFileName, true)
         )) {
             TODO: implementar método na etapa 2
         } catch (IOException e) {
@@ -94,21 +72,20 @@ public class LogManager implements ILogManager {
 */
 
     public static void main(String[] args) {
-        String request[] = {
-                "{\"id\": 1, \"op\": \"put\", \"key\": 91, \"value\": \"abc\"}",
-                "{\"id\": 2, \"op\": \"get\", \"key\": 91}",
-                "{\"id\": 3, \"op\": \"delete\", \"key\": 91}"
-        };
+        List<String> request = new ArrayList<>();
 
-        LogManager logManager = new LogManager("data1.dat");
+        for (int i = 0; i < 50_000; i++)
+            request.add(String.format("{\"id\": %d, \"op\": \"put\", \"key\": 91, \"value\": \"abc\"}", i + 1));
+        System.out.println("Vetor construído");
+
+        LogManager logManager = new LogManager("log.jsonl");
         for (String op: request)
             logManager.addOperation(op);
+        System.out.println("Arquivo construído");
 
-        System.out.println(logManager.getFilePositionMap());
-
-        System.out.println(logManager.getOperation(1L));
-        System.out.println(logManager.getOperation(2L));
-        System.out.println(logManager.getOperation(3L));
+        for (Long id = 1L; id <= request.size(); id++)
+            System.out.println(logManager.getOperation(id));
+        System.out.println("Todas as operações foram obtidas");
 
     }
 }
