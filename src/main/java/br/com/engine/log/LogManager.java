@@ -1,8 +1,11 @@
 package br.com.engine.log;
 
 import br.com.engine.operation.Operation;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.*;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -28,6 +31,13 @@ public class LogManager implements ILogManager {
         }
     }
 
+    private Map<String, Object> buildOperationMap(String operationJson) {
+        Gson jsonParser = new Gson();
+
+        Type mapType = new TypeToken<Map<String, Object>>() {}.getType();
+        return jsonParser.fromJson(operationJson, mapType);
+    }
+
     public Operation getOperation(Long id) {
         try (BufferedReader reader = new BufferedReader(
                 new FileReader(this.logFileName, StandardCharsets.UTF_8)
@@ -36,7 +46,8 @@ public class LogManager implements ILogManager {
                                     .skip(id - 1)
                                     .findFirst()
                                     .get();
-            return Operation.getFromJson(operationJson);
+            Map<String, Object> operationMap = buildOperationMap(operationJson);
+            return Operation.getFromJson(operationMap);
         } catch (IOException e) {
             System.out.println("ERROR: " + e.getMessage());
             e.printStackTrace();
