@@ -29,14 +29,7 @@ public record Operation (
         this(id, type, null, recordKey, lastRecordKey);
     }
 
-    public static Operation getFromJson(String operationJson) {
-        Gson jsonParser = new Gson();
-
-        Type mapType = new TypeToken<Map<String, Object>>() {}.getType();
-        Map<String, Object> operationMap = jsonParser.fromJson(operationJson, mapType);
-
-        System.out.println(operationMap);
-
+    public static Operation getFromJson(Map<String, Object> operationMap) {
         Long id = ((Number) operationMap.get("id")).longValue();
         String op = operationMap.get("op").toString();
         Long key;
