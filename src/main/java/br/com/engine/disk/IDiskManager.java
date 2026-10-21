@@ -11,5 +11,5 @@ public interface IDiskManager {
     Long put(Record record, Long address) throws IOException;
     String get(Long address) throws IOException;
     void delete(Long address) throws IOException;
-    Map<Long, Long> getActiveRecords() throws IOException, InvalidFileAddressException;
+    Map<Long, Long> getActiveRecords() throws IOException, CorruptedDataException;
 }

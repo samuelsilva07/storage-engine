@@ -1,5 +1,7 @@
 package br.com.engine.disk;
 import br.com.engine.record.Record;
+
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.Map;
@@ -51,24 +53,29 @@ public class DiskManager implements IDiskManager {
 	}
 
 	@Override
-	public Map<Long, Long> getActiveRecords() throws IOException, InvalidFileAddressException  {
+	public Map<Long, Long> getActiveRecords() throws IOException, CorruptedDataException  {
 		Map<Long, Long> map = new HashMap<>();
 		int status, valueSize;
 		Long address=(long) 0, key;
 		file.seek(0);
 		Long fileSize=file.length();
 		while(address<fileSize) {
+			try {
 				status=file.readInt();
 				key=file.readLong();
 				valueSize=file.readInt();
+				file.seek(address+16+valueSize);
+				if(file.getFilePointer()>file.length()) {
+					throw new EOFException();
+				}
 				if(status == 1) {
 					map.put(key, address);
 				}
-				if(address+16+valueSize > fileSize) {
-					throw new InvalidFileAddressException("Registro truncado: o tamanho declarado do conteúdo excede os bytes disponíveis no arquivo.");
-				}
-				file.skipBytes(valueSize);
 				address=file.getFilePointer();
+			}
+			catch(EOFException e) {
+				throw new CorruptedDataException("Registro truncado: o tamanho declarado do conteúdo excede os bytes disponíveis no arquivo.");
+			}
 		}
 		return map;
 	}
