@@ -18,6 +18,9 @@ public class DiskManager implements IDiskManager {
 	
     static final int HEADER_SIZE = 16;
     static final int VALUE_SIZE_OFFSET = 12;
+    static final int COMPACTION_SIZE_THRESHOLD = 1024*1024*4;
+    static final int COMPACTION_TOMBSTONE_RATIO_THRESHOLD = 4;
+    static final int INVALID_SIZE_SENTINEL = -1;
 	
 	final File file;
 	RandomAccessFile raf;
@@ -43,7 +46,6 @@ public class DiskManager implements IDiskManager {
 		raf.writeInt(record.getValueSize());
 		raf.write((record.getValue()).getBytes(StandardCharsets.UTF_8));
 		activeBytes += HEADER_SIZE+record.getValueSize();
-		mapUpToDate = false;
 		return newAddress;
 	}
 
@@ -66,20 +68,18 @@ public class DiskManager implements IDiskManager {
 		if(raf.readInt() != RecordStatus.NOACTIVE.getStatus()) {
 			raf.seek(address);
 			raf.writeInt(RecordStatus.NOACTIVE.getStatus());
-			mapUpToDate = false;
 			raf.seek(address+VALUE_SIZE_OFFSET);
 			int size = raf.readInt();
 			inactiveBytes += HEADER_SIZE+size;
 			activeBytes -= HEADER_SIZE+size;
-			if (inactiveBytes * 4 >= activeBytes + inactiveBytes) { //quando 25% ou mais do arquivo for composto de registros marcados para remoção
-				calculateActiveRecordsSize();
+			if (inactiveBytes * COMPACTION_TOMBSTONE_RATIO_THRESHOLD >= activeBytes + inactiveBytes && activeBytes + inactiveBytes > COMPACTION_SIZE_THRESHOLD ) { //quando 25% ou mais do arquivo for composto de registros marcados para remoção
 				compactData();
 			}
 		}
 	}
 
 	@Override
-	public Map<Long, Long> getActiveRecords() throws IOException, CorruptedDataException  {
+	public Map<Long, Long> getActiveRecords() throws IOException  {
 		Map<Long, Long> map = new HashMap<>();
 		int status, valueSize;
 		Long address=(long) 0, key;
@@ -89,29 +89,29 @@ public class DiskManager implements IDiskManager {
 			try {
 				status=raf.readInt();
 				key=raf.readLong();
-				valueSize=raf.readInt();
-				raf.seek(address+HEADER_SIZE+valueSize);
-				if(raf.getFilePointer()>raf.length()) {
-					throw new EOFException();
+				valueSize=readAndValidateValueSize(address, fileSize);
+				if (valueSize == INVALID_SIZE_SENTINEL) {
+					break;
 				}
+				raf.seek(address+HEADER_SIZE+valueSize);
 				if(status == RecordStatus.ACTIVE.getStatus()) {
 					map.put(key, address);
 				}
 				address=raf.getFilePointer();
 			}
 			catch(EOFException e) {
-				throw new CorruptedDataException("Registro truncado: o tamanho declarado do conteúdo excede os bytes disponíveis no arquivo.");
+				break;
 			}
 		}
 		mapUpToDate = true;
 		return map;
 	}
 	
-	public boolean mapUpdateStatus() {
+	public boolean getMapUpdateStatus() {
 		return mapUpToDate;
 	}
 	
-	private void compactData() throws IOException, CorruptedDataException {
+	private void compactData() throws IOException {
 		File tempFile = new File(file.getParent(), "dataTemp.dat");
 		try (RandomAccessFile tempRAF = new RandomAccessFile(tempFile, "rw")) {
 			tempRAF.setLength(0);
@@ -122,26 +122,43 @@ public class DiskManager implements IDiskManager {
 			while(address<fileSize) {
 				try {
 					status=raf.readInt();
-					key=raf.readLong();
-					valueSize=raf.readInt();
-					byte[] recordData = new byte[valueSize];
-					raf.readFully(recordData);
-					if(status == 1) {
+					if(status == RecordStatus.ACTIVE.getStatus()) {
+						key=raf.readLong();
+						valueSize=readAndValidateValueSize(address, fileSize);
+						if (valueSize == INVALID_SIZE_SENTINEL) {
+						break;
+						}
+						byte[] recordData = new byte[valueSize];
+						raf.readFully(recordData);
 						tempRAF.writeInt(status);
 						tempRAF.writeLong(key);
 						tempRAF.writeInt(valueSize);
 						tempRAF.write(recordData);
 					}
+					else {
+						raf.seek(address+VALUE_SIZE_OFFSET);
+						valueSize=readAndValidateValueSize(address, fileSize);
+						if (valueSize == INVALID_SIZE_SENTINEL) {
+						break;
+						}
+						raf.seek(address+HEADER_SIZE+valueSize);
+					}
 					address=raf.getFilePointer();
 				}
 				catch(EOFException e) {
-					throw new CorruptedDataException("Registro truncado: o tamanho declarado do conteúdo excede os bytes disponíveis no arquivo.");
+					break;
 				}
 			}
+			tempRAF.getFD().sync();
 		}
 		raf.close();
+		try {
 		Files.move(tempFile.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-		raf = new RandomAccessFile(file, "rw");
+		}
+		finally {
+			tempFile.delete();
+			raf = new RandomAccessFile(file, "rw");
+		}
 		mapUpToDate = false;
 		calculateActiveRecordsSize();
 		}
@@ -152,13 +169,17 @@ public class DiskManager implements IDiskManager {
 		activeBytes = 0;
 		inactiveBytes = 0;
 		raf.seek(0);
-		while(address<raf.length()) {
+		long fileSize = raf.length();
+		while(address<fileSize) {
 			try {
 				status=raf.readInt();
 				raf.seek(address+VALUE_SIZE_OFFSET);
-				valueSize=raf.readInt();
+				valueSize=readAndValidateValueSize(address, fileSize);
+				if (valueSize == INVALID_SIZE_SENTINEL) {
+					break;
+				}
 				raf.seek(address+HEADER_SIZE+valueSize);
-				if(status == 1) {
+				if(status == RecordStatus.ACTIVE.getStatus()) {
 					activeBytes+=HEADER_SIZE+valueSize;
 				}
 				else{
@@ -167,9 +188,17 @@ public class DiskManager implements IDiskManager {
 				address=raf.getFilePointer();
 			}
 			catch(EOFException e) {
-				throw new CorruptedDataException("Registro truncado: o tamanho declarado do conteúdo excede os bytes disponíveis no arquivo.");
+				break;
 			}
 		}
+	}
+	
+	private int readAndValidateValueSize(long address, long fileSize) throws IOException {
+		int valueSize = raf.readInt();
+		if (valueSize < 0 || address + HEADER_SIZE + valueSize > fileSize) {
+		    valueSize=-INVALID_SIZE_SENTINEL;
+		}
+		return valueSize;
 	}
 
 }
