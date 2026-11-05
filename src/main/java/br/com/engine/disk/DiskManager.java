@@ -72,7 +72,8 @@ public class DiskManager implements IDiskManager {
 			int size = raf.readInt();
 			inactiveBytes += HEADER_SIZE+size;
 			activeBytes -= HEADER_SIZE+size;
-			if (inactiveBytes * COMPACTION_TOMBSTONE_RATIO_THRESHOLD >= activeBytes + inactiveBytes && activeBytes + inactiveBytes > COMPACTION_SIZE_THRESHOLD ) { //quando 25% ou mais do arquivo for composto de registros marcados para remoção
+			if (inactiveBytes * COMPACTION_TOMBSTONE_RATIO_THRESHOLD >= activeBytes + inactiveBytes
+					&& activeBytes + inactiveBytes > COMPACTION_SIZE_THRESHOLD ) { //quando 25% ou mais do arquivo for composto de registros marcados para remoção
 				compactData();
 			}
 		}
@@ -82,22 +83,22 @@ public class DiskManager implements IDiskManager {
 	public Map<Long, Long> getActiveRecords() throws IOException  {
 		Map<Long, Long> map = new HashMap<>();
 		int status, valueSize;
-		Long address=(long) 0, key;
+		Long address = 0L, key;
 		raf.seek(0);
-		Long fileSize=raf.length();
-		while(address<fileSize) {
+		Long fileSize = raf.length();
+		while(address < fileSize) {
 			try {
-				status=raf.readInt();
-				key=raf.readLong();
-				valueSize=readAndValidateValueSize(address, fileSize);
+				status = raf.readInt();
+				key = raf.readLong();
+				valueSize = readAndValidateValueSize(address, fileSize);
 				if (valueSize == INVALID_SIZE_SENTINEL) {
 					break;
 				}
-				raf.seek(address+HEADER_SIZE+valueSize);
-				if(status == RecordStatus.ACTIVE.getStatus()) {
+				raf.seek(address + HEADER_SIZE+valueSize);
+				if (status == RecordStatus.ACTIVE.getStatus()) {
 					map.put(key, address);
 				}
-				address=raf.getFilePointer();
+				address = raf.getFilePointer();
 			}
 			catch(EOFException e) {
 				break;
@@ -116,15 +117,15 @@ public class DiskManager implements IDiskManager {
 		try (RandomAccessFile tempRAF = new RandomAccessFile(tempFile, "rw")) {
 			tempRAF.setLength(0);
 			int status, valueSize;
-			Long address=(long) 0, key;
+			Long address = 0L, key;
 			raf.seek(0);
-			Long fileSize=raf.length();
-			while(address<fileSize) {
+			Long fileSize = raf.length();
+			while (address < fileSize) {
 				try {
-					status=raf.readInt();
-					if(status == RecordStatus.ACTIVE.getStatus()) {
-						key=raf.readLong();
-						valueSize=readAndValidateValueSize(address, fileSize);
+					status = raf.readInt();
+					if (status == RecordStatus.ACTIVE.getStatus()) {
+						key = raf.readLong();
+						valueSize = readAndValidateValueSize(address, fileSize);
 						if (valueSize == INVALID_SIZE_SENTINEL) {
 						break;
 						}
@@ -136,14 +137,14 @@ public class DiskManager implements IDiskManager {
 						tempRAF.write(recordData);
 					}
 					else {
-						raf.seek(address+VALUE_SIZE_OFFSET);
-						valueSize=readAndValidateValueSize(address, fileSize);
+						raf.seek(address + VALUE_SIZE_OFFSET);
+						valueSize = readAndValidateValueSize(address, fileSize);
 						if (valueSize == INVALID_SIZE_SENTINEL) {
 						break;
 						}
-						raf.seek(address+HEADER_SIZE+valueSize);
+						raf.seek(address + HEADER_SIZE + valueSize);
 					}
-					address=raf.getFilePointer();
+					address = raf.getFilePointer();
 				}
 				catch(EOFException e) {
 					break;
@@ -153,7 +154,7 @@ public class DiskManager implements IDiskManager {
 		}
 		raf.close();
 		try {
-		Files.move(tempFile.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+			Files.move(tempFile.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
 		}
 		finally {
 			tempFile.delete();
@@ -165,29 +166,29 @@ public class DiskManager implements IDiskManager {
 	
 	private void calculateActiveRecordsSize() throws IOException {
 		int status, valueSize;
-		Long address=(long) 0;
+		Long address = 0L;
 		activeBytes = 0;
 		inactiveBytes = 0;
 		raf.seek(0);
 		long fileSize = raf.length();
-		while(address<fileSize) {
+		while (address<fileSize) {
 			try {
-				status=raf.readInt();
-				raf.seek(address+VALUE_SIZE_OFFSET);
-				valueSize=readAndValidateValueSize(address, fileSize);
+				status = raf.readInt();
+				raf.seek(address + VALUE_SIZE_OFFSET);
+				valueSize = readAndValidateValueSize(address, fileSize);
 				if (valueSize == INVALID_SIZE_SENTINEL) {
 					break;
 				}
-				raf.seek(address+HEADER_SIZE+valueSize);
-				if(status == RecordStatus.ACTIVE.getStatus()) {
-					activeBytes+=HEADER_SIZE+valueSize;
+				raf.seek(address + HEADER_SIZE + valueSize);
+				if (status == RecordStatus.ACTIVE.getStatus()) {
+					activeBytes += HEADER_SIZE+valueSize;
 				}
-				else{
-					inactiveBytes+=HEADER_SIZE+valueSize;
+				else {
+					inactiveBytes += HEADER_SIZE+valueSize;
 				}
-				address=raf.getFilePointer();
+				address = raf.getFilePointer();
 			}
-			catch(EOFException e) {
+			catch (EOFException e) {
 				break;
 			}
 		}
@@ -196,7 +197,7 @@ public class DiskManager implements IDiskManager {
 	private int readAndValidateValueSize(long address, long fileSize) throws IOException {
 		int valueSize = raf.readInt();
 		if (valueSize < 0 || address + HEADER_SIZE + valueSize > fileSize) {
-		    valueSize=-INVALID_SIZE_SENTINEL;
+		    valueSize =- INVALID_SIZE_SENTINEL;
 		}
 		return valueSize;
 	}
