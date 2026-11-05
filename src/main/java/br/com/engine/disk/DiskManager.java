@@ -1,43 +1,61 @@
 package br.com.engine.disk;
 import br.com.engine.record.Record;
+
+import java.io.EOFException;
+import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.Map;
 
 import br.com.engine.record.RecordStatus;
 
 import java.util.HashMap;
 
-import br.com.engine.utils.ByteArrayCodec;
 public class DiskManager implements IDiskManager {
-
-	RandomAccessFile file;
 	
-	public DiskManager(String filePath) throws IOException {
-		this.file = new RandomAccessFile(filePath, "rw");
+    static final int HEADER_SIZE = 16;
+    static final int VALUE_SIZE_OFFSET = 12;
+    static final int COMPACTION_SIZE_THRESHOLD = 1024*1024*4;
+    static final int COMPACTION_TOMBSTONE_RATIO_THRESHOLD = 4;
+    static final int INVALID_SIZE_SENTINEL = -1;
+	
+	final File file;
+	RandomAccessFile raf;
+	boolean mapUpToDate = false;
+	long activeBytes=0, inactiveBytes=0;
+	
+	public DiskManager(String folderPath) throws IOException {
+		file = new File(folderPath, "data.dat");
+		raf = new RandomAccessFile(file, "rw");
+		if (raf.length()>0) {
+			compactData();
+		}
 	}
 
 	@Override
 	public Long put(Record record, Long address) throws IOException {
 		delete(address);
-		file.seek(file.length());
-	    Long newAddress= file.getFilePointer();
+		raf.seek(raf.length());
+	    Long newAddress= raf.getFilePointer();
 		
-		file.writeInt(RecordStatus.ACTIVE.getStatus());
-		file.write(ByteArrayCodec.serializeLong(record.getKey()));
-		file.write(ByteArrayCodec.serializeInt(record.getValueSize()));
-		file.write(ByteArrayCodec.serializeString(record.getValue()));
+		raf.writeInt(RecordStatus.ACTIVE.getStatus());
+		raf.writeLong(record.getKey());
+		raf.writeInt(record.getValueSize());
+		raf.write((record.getValue()).getBytes(StandardCharsets.UTF_8));
+		activeBytes += HEADER_SIZE+record.getValueSize();
 		return newAddress;
 	}
 
 	@Override
 	public String get(Long address) throws IOException {
-		file.seek(address);
-		file.skipBytes(12);
-		int size = file.readInt();
+		raf.seek(address+VALUE_SIZE_OFFSET);
+		int size = raf.readInt();
 		byte[] bytes = new byte[size];
-		file.readFully(bytes);
-		String value = ByteArrayCodec.deserializeString(bytes);
+		raf.readFully(bytes);
+		String value = new String(bytes, StandardCharsets.UTF_8);
 		return value;
 	}
 
@@ -46,31 +64,141 @@ public class DiskManager implements IDiskManager {
 		if (address == null) {
 			return;
 		}
-		file.seek(address);
-		file.writeInt(RecordStatus.NOACTIVE.getStatus());
+		raf.seek(address);
+		if(raf.readInt() != RecordStatus.NOACTIVE.getStatus()) {
+			raf.seek(address);
+			raf.writeInt(RecordStatus.NOACTIVE.getStatus());
+			raf.seek(address+VALUE_SIZE_OFFSET);
+			int size = raf.readInt();
+			inactiveBytes += HEADER_SIZE+size;
+			activeBytes -= HEADER_SIZE+size;
+			if (inactiveBytes * COMPACTION_TOMBSTONE_RATIO_THRESHOLD >= activeBytes + inactiveBytes && activeBytes + inactiveBytes > COMPACTION_SIZE_THRESHOLD ) { //quando 25% ou mais do arquivo for composto de registros marcados para remoção
+				compactData();
+			}
+		}
 	}
 
 	@Override
-	public Map<Long, Long> getActiveRecords() throws IOException, InvalidFileAddressException  {
+	public Map<Long, Long> getActiveRecords() throws IOException  {
 		Map<Long, Long> map = new HashMap<>();
 		int status, valueSize;
 		Long address=(long) 0, key;
-		file.seek(0);
-		Long fileSize=file.length();
+		raf.seek(0);
+		Long fileSize=raf.length();
 		while(address<fileSize) {
-				status=file.readInt();
-				key=file.readLong();
-				valueSize=file.readInt();
-				if(status == 1) {
+			try {
+				status=raf.readInt();
+				key=raf.readLong();
+				valueSize=readAndValidateValueSize(address, fileSize);
+				if (valueSize == INVALID_SIZE_SENTINEL) {
+					break;
+				}
+				raf.seek(address+HEADER_SIZE+valueSize);
+				if(status == RecordStatus.ACTIVE.getStatus()) {
 					map.put(key, address);
 				}
-				if(address+16+valueSize > fileSize) {
-					throw new InvalidFileAddressException("Registro truncado: o tamanho declarado do conteúdo excede os bytes disponíveis no arquivo.");
-				}
-				file.skipBytes(valueSize);
-				address=file.getFilePointer();
+				address=raf.getFilePointer();
+			}
+			catch(EOFException e) {
+				break;
+			}
 		}
+		mapUpToDate = true;
 		return map;
+	}
+	
+	public boolean getMapUpdateStatus() {
+		return mapUpToDate;
+	}
+	
+	private void compactData() throws IOException {
+		File tempFile = new File(file.getParent(), "dataTemp.dat");
+		try (RandomAccessFile tempRAF = new RandomAccessFile(tempFile, "rw")) {
+			tempRAF.setLength(0);
+			int status, valueSize;
+			Long address=(long) 0, key;
+			raf.seek(0);
+			Long fileSize=raf.length();
+			while(address<fileSize) {
+				try {
+					status=raf.readInt();
+					if(status == RecordStatus.ACTIVE.getStatus()) {
+						key=raf.readLong();
+						valueSize=readAndValidateValueSize(address, fileSize);
+						if (valueSize == INVALID_SIZE_SENTINEL) {
+						break;
+						}
+						byte[] recordData = new byte[valueSize];
+						raf.readFully(recordData);
+						tempRAF.writeInt(status);
+						tempRAF.writeLong(key);
+						tempRAF.writeInt(valueSize);
+						tempRAF.write(recordData);
+					}
+					else {
+						raf.seek(address+VALUE_SIZE_OFFSET);
+						valueSize=readAndValidateValueSize(address, fileSize);
+						if (valueSize == INVALID_SIZE_SENTINEL) {
+						break;
+						}
+						raf.seek(address+HEADER_SIZE+valueSize);
+					}
+					address=raf.getFilePointer();
+				}
+				catch(EOFException e) {
+					break;
+				}
+			}
+			tempRAF.getFD().sync();
+		}
+		raf.close();
+		try {
+		Files.move(tempFile.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+		}
+		finally {
+			tempFile.delete();
+			raf = new RandomAccessFile(file, "rw");
+		}
+		mapUpToDate = false;
+		calculateActiveRecordsSize();
+		}
+	
+	private void calculateActiveRecordsSize() throws IOException {
+		int status, valueSize;
+		Long address=(long) 0;
+		activeBytes = 0;
+		inactiveBytes = 0;
+		raf.seek(0);
+		long fileSize = raf.length();
+		while(address<fileSize) {
+			try {
+				status=raf.readInt();
+				raf.seek(address+VALUE_SIZE_OFFSET);
+				valueSize=readAndValidateValueSize(address, fileSize);
+				if (valueSize == INVALID_SIZE_SENTINEL) {
+					break;
+				}
+				raf.seek(address+HEADER_SIZE+valueSize);
+				if(status == RecordStatus.ACTIVE.getStatus()) {
+					activeBytes+=HEADER_SIZE+valueSize;
+				}
+				else{
+					inactiveBytes+=HEADER_SIZE+valueSize;
+				}
+				address=raf.getFilePointer();
+			}
+			catch(EOFException e) {
+				break;
+			}
+		}
+	}
+	
+	private int readAndValidateValueSize(long address, long fileSize) throws IOException {
+		int valueSize = raf.readInt();
+		if (valueSize < 0 || address + HEADER_SIZE + valueSize > fileSize) {
+		    valueSize=-INVALID_SIZE_SENTINEL;
+		}
+		return valueSize;
 	}
 
 }
