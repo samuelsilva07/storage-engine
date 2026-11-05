@@ -1,10 +1,5 @@
 package br.com.engine.record;
 
-import br.com.engine.utils.ByteArrayCodec;
-
-import java.util.LinkedList;
-import java.util.List;
-
 public class Record {
     private RecordStatus status;
     private Long key;
